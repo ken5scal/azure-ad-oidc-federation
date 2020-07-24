@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import App from './App.vue'
-import { PublicClientApplication, AccountInfo, AuthenticationResult, Configuration, LogLevel, EndSessionRequest, PopupRequest } from "@azure/msal-browser";
+import { PublicClientApplication, AuthenticationResult, Configuration, PopupRequest } from "@azure/msal-browser";
 import { TimeUtils, AuthError } from "@azure/msal-common"
 import { v4 as uuid } from "uuid";
 import base64url from "base64url";
@@ -127,6 +127,8 @@ function certToPEM(cert: string): string {
   return `-----BEGIN CERTIFICATE-----\n${cert}\n-----END CERTIFICATE-----\n`;
 }
 
+// calculating rsa pulic key from modulus and exponent is from
+// https://github.com/auth0/node-jwks-rsa/blob/d842be9fc24cc3eef53ae1b41ef6a36df0bf3b33/src/utils.js#L35
 function rsaPubKeyToPEM(modulusB64: string, exponentB64: string): string {
   const modulus = new Buffer(modulusB64, 'base64');
   const exponent = new Buffer(exponentB64, 'base64');
