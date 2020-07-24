@@ -9,14 +9,20 @@
   },
   "dependencies": {
     "@azure/msal-browser": "^2.0.0",
+    "@types/base64url": "^2.0.0",
+    "@types/node-rsa": "^1.0.0",
     "@types/uuid": "^8.0.0",
     "axios": "^0.19.2",
     "core-js": "^2.6.5",
+    "jwks-rsa": "^1.8.1",
+    "jwks-rsa-promisified": "^1.0.2",
+    "node-rsa": "^1.1.1",
     "vue": "^2.6.10",
     "vue-class-component": "^7.2.3",
     "vue-property-decorator": "^8.4.2"
   },
   "devDependencies": {
+    "@types/node-rsa": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "^3.6.1",
     "@typescript-eslint/parser": "^3.1.0",
     "@vue/cli-plugin-babel": "^3.12.0",
