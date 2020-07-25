@@ -1,13 +1,11 @@
 import Vue from 'vue'
 import App from './App.vue'
-import { PublicClientApplication, AuthenticationResult, Configuration, PopupRequest } from "@azure/msal-browser";
-import { TimeUtils, AuthError } from "@azure/msal-common"
+import { TimeUtils } from "@azure/msal-common"
 import { v4 as uuid } from "uuid";
 import base64url from "base64url";
 import axios from "axios";
 import crypto from 'crypto';
 import * as Msal from "@azure/msal";
-import { IdToken } from '@azure/msal/lib-commonjs/IdToken';
 import { StringDict } from '@azure/msal/lib-commonjs/MsalTypes';
 
 Vue.config.productionTip = false
@@ -18,237 +16,12 @@ Vue.config.productionTip = false
 const AzureADOIDCMetadata = "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
 const clientId = '233198da-6ed2-40f0-8e65-1d235385e2fe'
 const tenantId = '36a6e4b2-e620-44c2-897b-22b1d394354a'
-const msalObj: PublicClientApplication = new PublicClientApplication({auth: {
-  clientId: clientId,
-  authority: `https://login.microsoftonline.com/${tenantId}`
-}})
 const msalInstance = new Msal.UserAgentApplication({auth: {
   clientId: clientId,
   authority: `https://login.microsoftonline.com/${tenantId}`
 }})
-axios.defaults.headers.get['Content-Type'] = 'application/json'
-
-window.addEventListener("load", async () => {
-  loadAuthModule()
-})
 
 let sid: string = 'fake'
-
-function loadAuthModule() {
-  // let accounts = msalObj.getAllAccounts();
-  // if (accounts === null) {
-  //   login()
-  // }
-  // let accounts = msalInstance.getAllAccounts();
-  // console.log(accounts)
-  // if (accounts === null || accounts.length === 0) {
-
-    const state = uuid();
-    const loginRequest: Msal.AuthenticationParameters = {
-      scopes: ["openid"],
-      state: state
-    }
-    const ssoLoginRequest: Msal.AuthenticationParameters = {
-      scopes: ["openid"],
-      state: state,
-      sid: sid
-    }
-
-    msalInstance.ssoSilent(ssoLoginRequest)
-    .then(async resp => {
-      try {
-        const jwk = await getJWK(resp.idToken.rawIdToken)
-
-        if (!validateIdTokenClaims(resp.idTokenClaims)) {
-          throw Error("ID Token has invalid claims");
-        }
-
-        if (!jwk || !(validateIdTokenSignature(jwk, resp.idToken.rawIdToken))) {
-          throw Error("IdToken has invalid signature");
-        }
-
-        sid = resp.idTokenClaims['sid']
-      } catch (error) {
-        console.error(error)
-      }
-    })
-    .catch(error => {
-      msalInstance.loginPopup(loginRequest)
-      .then(async resp => {
-        try {
-          const jwk = await getJWK(resp.idToken.rawIdToken)
-          console.log(jwk)
-  
-          if (!validateIdTokenClaims(resp.idTokenClaims)) {
-            throw Error("hoge");
-          }
-  
-          if (!jwk || !(validateIdTokenSignature(jwk, resp.idToken.rawIdToken))) {
-            throw Error("fuga");
-          }
-
-          sid = resp.idTokenClaims['sid']
-        } catch (error) {
-          console.error(error)
-        }
-      })
-    })
-}
-
-function login(): void {
-  const state = uuid();
-  const nonce = uuid();
-  const loginRequest: PopupRequest =  {scopes:[], state: state, nonce: nonce, codeChallenge: uuid(), codeChallengeMethod: "S256"}
-  msalObj.loginPopup(loginRequest)
-    .then((resp: AuthenticationResult) => {
-      // const now = TimeUtils.nowSeconds();
-      // const idTokenNonce = resp.idTokenClaims["nonce"]
-      // const aud = resp.idTokenClaims["aud"]
-      // const iat: number = +resp.idTokenClaims["iat"]
-      // const nbf: number = +resp.idTokenClaims["nbf"]
-      // const exp: number = +resp.idTokenClaims["exp"]
-      // const splitted = resp.idToken.split(".")
-      // const header: IdTokenHeader = JSON.parse(base64url.decode(splitted[0]))
-
-      // if (resp.state !== state || idTokenNonce !== nonce || aud != clientId ||
-      //   nbf > now || exp <= now || iat === null) {
-      //   return
-      // }
-    
-      // axios.get(AzureADOIDCMetadata)
-      // .then(resp => {
-      //   axios.get(resp.data["jwks_uri"])
-      //   .then(resp => {
-      //     const keys: AzureADRSAJWK[] = resp.data["keys"]
-      //     keys.filter((key) => {
-      //       if (!header.alg.includes('RS') || key.kty !== 'RSA') {
-      //         return false
-      //       }
-      //       if (key.hasOwnProperty('use') && key.use !== 'sig') {
-      //         return false
-      //       }
-      //       return (key.x5c && key.x5c.length) || (key.n && key.e)
-      //     })
-      //     .map((key) => {
-      //       if (key.kid !== header.kid) {
-      //         return
-      //       }
-            
-      //       let jwk: string
-      //       // has certificate chain?
-      //       if (key.x5c && key.x5c.length) {
-      //         jwk = certToPEM(key.x5c[0])
-      //       } else {
-      //         jwk = rsaPubKeyToPEM(key.n, key.e)
-      //       }
-
-      //       const verifier = crypto.createVerify('RSA-SHA256');
-      //       verifier.update(splitted[0] + "." + splitted[1])
-      //       if (!verifier.verify(certToPEM(key.x5c[0]), splitted[2], 'base64')) {
-      //         logout();
-      //       }
-      //     })
-      //   })
-      // })
-  }).catch((err: AuthError) => {
-    logout()
-  })
-}
-
-function validateIdTokenClaims(idTokenClaims: StringDict): boolean {
-  const now = TimeUtils.nowSeconds();
-  const aud = idTokenClaims["aud"]
-  const iat: number = +idTokenClaims["iat"]
-  const nbf: number = +idTokenClaims["nbf"]
-  const exp: number = +idTokenClaims["exp"]
-  return (aud == clientId && nbf <= now && exp > now && iat !== null)
-}
-
-async function getJWK(idToken: string): Promise<AzureADRSAJWK | undefined> {
-  const splitted = idToken.split(".")
-  const header: IdTokenHeader = JSON.parse(base64url.decode(splitted[0]))
-
-  try {
-    const meta = await axios.get(AzureADOIDCMetadata)
-    const resp = await axios.get(meta.data['jwks_uri'])
-    const keys: AzureADRSAJWK[] = resp.data["keys"]
-    keys.filter((key) => {
-      if (!header.alg.includes('RS') || key.kty !== 'RSA') {
-        console.log("algorithm is not RSA")
-        return false
-      }
-      
-      if (key.hasOwnProperty('use') && key.use !== 'sig') {
-        console.log("key usage is not for signature")
-        return false
-      }
-      
-      if (!(key.x5c && key.x5c.length)) {
-        console.log("x5c key chain does not exist")
-        return false
-      }
-
-      if (!(key.n && key.e)) {
-        console.log("rsa required parameters do not exist")
-        return false
-      }
-      
-      return (key.kid === header.kid)
-    })
-    return keys[0]
-  } catch (error) {
-    console.error(error)
-  }
-  
-  // let hoge = await axios.get(AzureADOIDCMetadata)
-  // .then(resp => {
-  //   axios.get(resp.data["jwks_uri"])
-  //   .then(resp => {
-  //     const keys: AzureADRSAJWK[] = resp.data["keys"]
-  //     keys.filter((key) => {
-  //       if (!header.alg.includes('RS') || key.kty !== 'RSA') {
-  //         console.log("algorithm is not RSA")
-  //         return false
-  //       }
-        
-  //       if (key.hasOwnProperty('use') && key.use !== 'sig') {
-  //         console.log("key usage is not for signature")
-  //         return false
-  //       }
-        
-  //       if (!(key.x5c && key.x5c.length)) {
-  //         console.log("x5c key chain does not exist")
-  //         return false
-  //       }
-
-  //       if (!(key.n && key.e)) {
-  //         console.log("rsa required parameters do not exist")
-  //         return false
-  //       }
-        
-  //       return (key.kid === header.kid)
-  //     })
-  //   })
-  // })
-}
-
-function validateIdTokenSignature(key: AzureADRSAJWK, idToken: string) {      
-  let jwk: string
-  if (key.x5c && key.x5c.length) {
-    jwk = certToPEM(key.x5c[0])
-   } else {
-    jwk = rsaPubKeyToPEM(key.n, key.e)
-  }
-
-  const splitted = idToken.split(".")
-  const verifier = crypto.createVerify('RSA-SHA256');
-  verifier.update(splitted[0] + "." + splitted[1])
-  return verifier.verify(certToPEM(key.x5c[0]), splitted[2], 'base64')
-}
-
-function logout(): void {
-  msalObj.logout();
-}
 
 interface IdTokenHeader {
   typ: string;
@@ -265,6 +38,92 @@ interface AzureADRSAJWK {
   e: string;
   x5c: string[];
   issuer: string;
+}
+
+axios.defaults.headers.get['Content-Type'] = 'application/json'
+window.addEventListener("load", async () => {
+  loadAuthModule()
+})
+
+function loadAuthModule() {
+    const loginRequest: Msal.AuthenticationParameters = {scopes: ["openid"], state: uuid(), sid: sid}
+    msalInstance.ssoSilent(loginRequest)
+    .then(async => validateIdToken)
+    .catch(error => {
+      loginRequest["sid"] = undefined
+      msalInstance.loginPopup(loginRequest)
+      .then(async resp => validateIdToken)
+    })
+}
+
+async function validateIdToken(resp: Msal.AuthResponse): Promise<void> {
+  try {
+    const jwk = await getJWK(resp.idToken.rawIdToken)
+
+    if (!validateIdTokenClaims(resp.idTokenClaims)) {
+      throw Error("ID Token has invalid claims");
+    }
+
+    if (!jwk || !(validateIdTokenSignature(jwk, resp.idToken.rawIdToken))) {
+      throw Error("IdToken has invalid signature");
+    }
+
+    sid = resp.idTokenClaims['sid']
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+async function getJWK(idToken: string): Promise<AzureADRSAJWK | undefined> {
+  const splitted = idToken.split(".")
+  const header: IdTokenHeader = JSON.parse(base64url.decode(splitted[0]))
+
+  const meta = await axios.get(AzureADOIDCMetadata)
+  const resp = await axios.get(meta.data['jwks_uri'])
+  const keys: AzureADRSAJWK[] = resp.data["keys"]
+  keys.filter((key) => {
+    if (!header.alg.includes('RS') || key.kty !== 'RSA') {
+      throw Error("algorithm is not RSA")
+    }
+    
+    if (key.hasOwnProperty('use') && key.use !== 'sig') {
+      return false
+    }
+    
+    if (!(key.x5c && key.x5c.length)) {
+      return false
+    }
+
+    if (!(key.n && key.e)) {
+      return false
+    }
+
+    return (key.kid === header.kid)
+  })
+  return keys[0]
+}
+
+function validateIdTokenClaims(idTokenClaims: StringDict): boolean {
+  const now = TimeUtils.nowSeconds();
+  const aud = idTokenClaims["aud"]
+  const iat: number = +idTokenClaims["iat"]
+  const nbf: number = +idTokenClaims["nbf"]
+  const exp: number = +idTokenClaims["exp"]
+  return (aud == clientId && nbf <= now && exp > now && iat !== null)
+}
+
+function validateIdTokenSignature(key: AzureADRSAJWK, idToken: string) {      
+  let jwk: string
+  if (key.x5c && key.x5c.length) {
+    jwk = certToPEM(key.x5c[0])
+   } else {
+    jwk = rsaPubKeyToPEM(key.n, key.e)
+  }
+
+  const splitted = idToken.split(".")
+  const verifier = crypto.createVerify('RSA-SHA256');
+  verifier.update(splitted[0] + "." + splitted[1])
+  return verifier.verify(certToPEM(key.x5c[0]), splitted[2], 'base64')
 }
 
 function certToPEM(cert: string): string {
