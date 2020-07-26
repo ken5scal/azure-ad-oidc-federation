@@ -1,0 +1,1 @@
+# azure-ad-oidc-federation
