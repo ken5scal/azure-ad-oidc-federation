@@ -1,22 +1,15 @@
-import Vue from 'vue'
-import App from './App.vue'
 import { TimeUtils } from "@azure/msal-common"
 import { v4 as uuid } from "uuid";
 import base64url from "base64url";
 import axios from "axios";
 import crypto from 'crypto';
-import * as Msal from "@azure/msal";
+import { UserAgentApplication, AuthenticationParameters, AuthResponse }  from "@azure/msal";
 import { StringDict } from '@azure/msal/lib-commonjs/MsalTypes';
 
-Vue.config.productionTip = false
-    new Vue({
-      render: h => h(App),
-    }).$mount('#app')
-
 const AzureADOIDCMetadata = "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
-const clientId = '233198da-6ed2-40f0-8e65-1d235385e2fe'
-const tenantId = '36a6e4b2-e620-44c2-897b-22b1d394354a'
-const msalInstance = new Msal.UserAgentApplication({auth: {
+const clientId = process.env['clientId'] || 'someId'
+const tenantId = process.env['tenantId']
+const msalInstance = new UserAgentApplication({auth: {
   clientId: clientId,
   authority: `https://login.microsoftonline.com/${tenantId}`
 }})
@@ -42,21 +35,17 @@ interface AzureADRSAJWK {
 
 axios.defaults.headers.get['Content-Type'] = 'application/json'
 window.addEventListener("load", async () => {
-  loadAuthModule()
+  const loginRequest: AuthenticationParameters = {scopes: ["openid"], state: uuid(), sid: sid}
+  msalInstance.ssoSilent(loginRequest)
+  .then(async => validateIdToken)
+  .catch(error => {
+    loginRequest["sid"] = undefined
+    msalInstance.loginPopup(loginRequest)
+    .then(async resp => validateIdToken)
+  })
 })
 
-function loadAuthModule() {
-    const loginRequest: Msal.AuthenticationParameters = {scopes: ["openid"], state: uuid(), sid: sid}
-    msalInstance.ssoSilent(loginRequest)
-    .then(async => validateIdToken)
-    .catch(error => {
-      loginRequest["sid"] = undefined
-      msalInstance.loginPopup(loginRequest)
-      .then(async resp => validateIdToken)
-    })
-}
-
-async function validateIdToken(resp: Msal.AuthResponse): Promise<void> {
+async function validateIdToken(resp: AuthResponse): Promise<void> {
   try {
     const jwk = await getJWK(resp.idToken.rawIdToken)
 
