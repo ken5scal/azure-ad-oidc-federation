@@ -1,5 +1,10 @@
 # azure-ad-oidc-federation
 
+## Pre-requirement
+* set following
+    * register app in Azure AD with claim 'sid'
+    * env: clientId, tenantId
+
 ## Project setup
 ```
 yarn install
