@@ -13,7 +13,7 @@
     "@types/base64url": "^2.0.0",
     "@types/node-rsa": "^1.0.0",
     "@types/uuid": "^8.0.0",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "core-js": "^2.6.5",
     "jwks-rsa": "^1.8.1",
     "jwks-rsa-promisified": "^1.0.2",
